@@ -1,0 +1,12 @@
+version: v1
+name: buf.build/rapetrin1/files
+deps:
+  - buf.build/googleapis/googleapis
+  - buf.build/envoyproxy/protoc-gen-validate
+  - buf.build/grpc-ecosystem/grpc-gateway
+lint:
+  use:
+    - DEFAULT
+breaking:
+  use:
+    - FILE
