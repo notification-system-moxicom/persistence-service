@@ -6,6 +6,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/notification-system-moxicom/persistence-service/internal/kafka"
+	"github.com/notification-system-moxicom/persistence-service/internal/repository"
 	"github.com/notification-system-moxicom/persistence-service/internal/rpc"
 	"github.com/notification-system-moxicom/persistence-service/internal/server"
 )
@@ -21,6 +22,7 @@ type Config struct {
 		Kafka struct {
 			CamundaCore kafka.Config `yaml:"orchestrator"`
 		} `yaml:"kafka"`
+		Postgres repository.Config `yaml:"postgres"`
 	} `yaml:"connections"`
 	Telemetry struct {
 		// May add later here telemetry configs

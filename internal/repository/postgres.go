@@ -3,6 +3,10 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"log/slog"
+	"os"
+	"strings"
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
@@ -10,6 +14,13 @@ import (
 
 	rpcv1 "github.com/notification-system-moxicom/persistence-service/pkg/proto/gen/persistence/v1"
 )
+
+type Config struct {
+	UserNameENV string `yaml:"username_env"`
+	PassENV     string `yaml:"password_env"`
+	HostENV     string `yaml:"host_env"`
+	DSNWithEnv  string `yaml:"dsn_with_env"` // example: postgres://{{DB_USERNAME}}:{{DB_PASSWORD}}@{{DB_HOST}}:5432/database_name
+}
 
 type SystemRepository interface {
 	CreateSystem(ctx context.Context, name, description string) (*rpcv1.System, error)
@@ -31,15 +42,49 @@ type postgresRep struct {
 	sb   sq.StatementBuilderType
 }
 
-// NewpostgresRep constructs a new Postgres-backed repository.
-func New(pool *pgxpool.Pool) Repository {
+// New constructs a new Postgres-backed repository.
+func New(ctx context.Context, cfg Config) (Repository, error) {
+	dsn := BuildDSN(cfg)
+	if dsn == "" {
+		return nil, errors.New("failed to build DSN from config")
+	}
+
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		slog.Error("failed to create postgres pool:", slog.String("error", err.Error()))
+		return nil, err
+	}
+
 	return &postgresRep{
 		pool: pool,
 		sb:   sq.StatementBuilder.PlaceholderFormat(sq.Dollar),
-	}
+	}, nil
 }
 
-// CreateSystem inserts a new system and returns it.
+func BuildDSN(cfg Config) string {
+	if cfg.DSNWithEnv != "" {
+		dsn := cfg.DSNWithEnv
+		if cfg.UserNameENV != "" {
+			envValue := os.Getenv(cfg.UserNameENV)
+			dsn = strings.ReplaceAll(dsn, "{{DB_USERNAME}}", envValue)
+		}
+
+		if cfg.PassENV != "" {
+			envValue := os.Getenv(cfg.PassENV)
+			dsn = strings.ReplaceAll(dsn, "{{DB_PASSWORD}}", envValue)
+		}
+
+		if cfg.HostENV != "" {
+			envValue := os.Getenv(cfg.HostENV)
+			dsn = strings.ReplaceAll(dsn, "{{DB_HOST}}", envValue)
+		}
+
+		return dsn
+	}
+
+	return ""
+}
+
 func (r *postgresRep) CreateSystem(
 	ctx context.Context,
 	name,
@@ -86,7 +131,6 @@ func (r *postgresRep) CreateSystem(
 	return system, nil
 }
 
-// ListSystems returns all systems.
 func (r *postgresRep) ListSystems(ctx context.Context) ([]*rpcv1.System, error) {
 	query := r.sb.
 		Select("id", "name", "description", "created_at", "updated_at", "deleted_at").
@@ -141,7 +185,6 @@ func (r *postgresRep) ListSystems(ctx context.Context) ([]*rpcv1.System, error) 
 	return systems, nil
 }
 
-// AddUser inserts a new user and returns it.
 func (r *postgresRep) AddUser(
 	ctx context.Context,
 	systemID,
@@ -185,7 +228,6 @@ func (r *postgresRep) AddUser(
 	}, nil
 }
 
-// ListUsers returns all users for a given system.
 func (r *postgresRep) ListUsers(ctx context.Context, systemID string) ([]*rpcv1.User, error) {
 	query := r.sb.
 		Select("id", "system_id", "id_at_system", "email", "phone", "telegram_chat_id").

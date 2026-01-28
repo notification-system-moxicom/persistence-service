@@ -4,9 +4,6 @@ import (
 	"context"
 	"flag"
 	"log/slog"
-	"os"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/notification-system-moxicom/persistence-service/internal/config"
 	"github.com/notification-system-moxicom/persistence-service/internal/kafka"
@@ -40,22 +37,13 @@ func main() {
 	}
 
 	// Initialize PostgreSQL connection pool.
-	dsn := os.Getenv("DATABASE_URL")
-	if dsn == "" {
-		slog.Error("DATABASE_URL environment variable is not set")
+	ctx := context.Background()
 
-		return
-	}
-
-	pool, err := pgxpool.New(context.Background(), dsn)
+	repo, err := repository.New(ctx, cfg.Connections.Postgres)
 	if err != nil {
-		slog.Error("failed to create postgres pool:", slog.String("error", err.Error()))
-
+		slog.Error("failed to create repository:", slog.String("error", err.Error()))
 		return
 	}
-	defer pool.Close()
-
-	repo := repository.New(pool)
 
 	_, err = kafka.NewService(&cfg.Connections.Kafka.CamundaCore, validator)
 	if err != nil {
