@@ -76,7 +76,9 @@ func (s *Server) Run() {
 	go func() {
 		if err := s.httpServer.ListenAndServe(); err != nil {
 			if errors.Is(err, http.ErrServerClosed) {
+				slog.Error("server is closed")
 			} else {
+				slog.Error(err.Error())
 			}
 		}
 	}()
@@ -93,6 +95,6 @@ func (s *Server) Run() {
 	if err := s.httpServer.Shutdown(ctx); err != nil {
 		slog.Error("HTTP server shutdown error: ", err)
 	} else {
-		// s.logger.Info("HTTP server shutdown complete")
+		slog.Info("HTTP server shutdown complete")
 	}
 }

@@ -1,4 +1,3 @@
 package incoming
 
-type Handler struct {
-}
+type Handler struct{}

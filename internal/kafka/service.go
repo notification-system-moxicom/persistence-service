@@ -135,21 +135,21 @@ func NewService(
 	//
 	// EXAMPLE OF ADDING CONSUMER GROUP
 	//
-	//startProcessConsumer, err := sarama.NewConsumerGroup(cfg.Brokers, cfg.ConsumerGroup, saramaCfg)
-	//if err != nil {
+	// startProcessConsumer, err := sarama.NewConsumerGroup(cfg.Brokers, cfg.ConsumerGroup, saramaCfg)
+	// if err != nil {
 	//	return nil, fmt.Errorf("failed to create consumer group: %w", err)
 	//}
 	//
-	//createServiceTaskConsumer, err := sarama.NewConsumerGroup(
+	// createServiceTaskConsumer, err := sarama.NewConsumerGroup(
 	//	cfg.Brokers,
 	//	cfg.ConsumerGroup,
 	//	saramaCfg,
 	//)
-	//if err != nil {
+	// if err != nil {
 	//	return nil, fmt.Errorf("failed to create consumer group: %w", err)
 	//}
 
-	//consumers[StartProcessConsumer] = startProcessConsumer
+	// consumers[StartProcessConsumer] = startProcessConsumer
 
 	return &Service{
 		serviceConfig: cfg,
@@ -238,8 +238,8 @@ func (s *Service) Produce(topic string, msg any) error {
 		return errors.NewKafkaError("kafka service is unavailable", nil)
 	}
 
-	//err := s.validator.Validate(msg)
-	//if err != nil {
+	// err := s.validator.Validate(msg)
+	// if err != nil {
 	//	errMsg := "JSON validation failed for " + fmt.Sprintf("%T", msg) + err.Error()
 	//
 	//	return fmt.Errorf("%s", errMsg)
@@ -295,7 +295,7 @@ func (s *Service) StartConsumer(
 	)
 
 	if cg, ok = s.consumers[consumerKey]; !ok {
-		slog.Error("consumer not found: ", consumerKey)
+		slog.Error("consumer not found", slog.String("consumerKey", consumerKey))
 		return
 	}
 
@@ -311,7 +311,7 @@ func (s *Service) StartConsumer(
 			// Check if service is being closed or context is done
 			select {
 			case <-ctx.Done():
-				slog.Info("context canceled, stopping consumer ", consumerKey)
+				slog.Info("context canceled, stopping consumer ", "consumer", consumerKey)
 				return
 			default:
 				// Continue execution

@@ -1,11 +1,16 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log/slog"
+	"os"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/notification-system-moxicom/persistence-service/internal/config"
 	"github.com/notification-system-moxicom/persistence-service/internal/kafka"
+	"github.com/notification-system-moxicom/persistence-service/internal/repository"
 	"github.com/notification-system-moxicom/persistence-service/internal/rpc"
 	"github.com/notification-system-moxicom/persistence-service/internal/validation"
 	"github.com/notification-system-moxicom/persistence-service/pkg/logger"
@@ -27,35 +32,39 @@ func main() {
 	schemaFiles := map[string]string{
 		"notification_message": "schemas/send_notification.json",
 	}
+
 	validator, err := validation.NewJSONSchemaMessageValidator(schemaFiles)
 	if err != nil {
 		slog.Error("failed to create JSON schema validator:", slog.String("error", err.Error()))
 		return
 	}
 
-	orchestratorKafka, err := kafka.NewService(&cfg.Connections.Kafka.CamundaCore, validator)
+	// Initialize PostgreSQL connection pool.
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		slog.Error("DATABASE_URL environment variable is not set")
+
+		return
+	}
+
+	pool, err := pgxpool.New(context.Background(), dsn)
+	if err != nil {
+		slog.Error("failed to create postgres pool:", slog.String("error", err.Error()))
+
+		return
+	}
+	defer pool.Close()
+
+	repo := repository.New(pool)
+
+	_, err = kafka.NewService(&cfg.Connections.Kafka.CamundaCore, validator)
 	if err != nil {
 		slog.Error("failed to create Kafka service:", slog.String("error", err.Error()))
+
 		return
 	}
 
-	defer func() {
-		slog.Info("Closing orchestratorKafka Kafka producer...")
-
-		if err := orchestratorKafka.CloseProducer(); err != nil {
-			slog.Error("Error closing orchestratorKafka Kafka producer: ", err)
-		}
-
-		slog.Info("orchestratorKafka producer closed successfully")
-	}()
-
-	err = orchestratorKafka.Produce("test_topic", []byte(`{"test_key":"test_value"}`))
-	if err != nil {
-		slog.Error("failed to produce test message:", slog.String("error", err.Error()))
-		return
-	}
-
-	rpcServ := rpc.NewGRPC(&cfg.Server.GRPC, nil)
+	rpcServ := rpc.NewGRPC(&cfg.Server.GRPC, repo)
 	if err = rpcServ.Listen(); err != nil {
 		slog.Error("failed to listen RPC server", slog.String("error", err.Error()))
 		return

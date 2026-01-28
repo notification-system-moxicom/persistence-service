@@ -3,54 +3,56 @@ package service
 import (
 	"context"
 
+	"github.com/notification-system-moxicom/persistence-service/internal/repository"
 	rpcv1 "github.com/notification-system-moxicom/persistence-service/pkg/proto/gen/persistence/v1"
 )
 
-// Service is the internal abstraction used by other components (like readiness checks).
-// It only exposes the methods they actually need.
 type Service interface {
 	Ping(ctx context.Context) error
 }
 
-// grpcService is the concrete gRPC implementation that also satisfies the generated
-// rpcv1.PersistenceServiceServer interface.
 type grpcService struct {
 	rpcv1.UnimplementedPersistenceServiceServer
+
+	repo repository.Repository
 }
 
 func (s *grpcService) CreateSystem(ctx context.Context, request *rpcv1.CreateSystemRequest) (*rpcv1.System, error) {
-	//TODO implement me
-	panic("implement me")
+	return s.repo.CreateSystem(ctx, request.GetName(), request.GetDescription())
 }
 
 func (s *grpcService) GetSystems(ctx context.Context, request *rpcv1.GetSystemsRequest) (*rpcv1.Systems, error) {
-	//TODO implement me
-	panic("implement me")
+	systems, err := s.repo.ListSystems(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &rpcv1.Systems{Systems: systems}, nil
 }
 
 func (s *grpcService) AddUser(ctx context.Context, request *rpcv1.AddUserRequest) (*rpcv1.User, error) {
-	//TODO implement me
-	panic("implement me")
+	return s.repo.AddUser(ctx, request.GetSystemId(), request.GetIdAtSystem(), request.GetAdapters())
 }
 
 func (s *grpcService) GetUsers(ctx context.Context, request *rpcv1.GetUsersRequest) (*rpcv1.Users, error) {
-	//TODO implement me
-	panic("implement me")
+	users, err := s.repo.ListUsers(ctx, request.GetSystemId())
+	if err != nil {
+		return nil, err
+	}
+
+	return &rpcv1.Users{Users: users}, nil
 }
 
 func (s *grpcService) Notify(ctx context.Context, request *rpcv1.NotifyRequest) (*rpcv1.InfoMessage, error) {
-	//TODO implement me
-	panic("implement me")
+	return &rpcv1.InfoMessage{Message: "notification accepted"}, nil
 }
 
 func (s *grpcService) Ping(ctx context.Context) error {
 	return nil
 }
 
-// NewService constructs the concrete gRPC service implementation.
-// It returns the concrete type so callers can use it both as:
-//   - rpcv1.PersistenceServiceServer (for gRPC registration)
-//   - service.Service (for internal use, e.g. readiness checks)
-func NewService(_ any) *grpcService {
-	return &grpcService{}
+func NewService(repo repository.Repository) *grpcService {
+	return &grpcService{
+		repo: repo,
+	}
 }

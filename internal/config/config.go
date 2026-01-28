@@ -3,10 +3,11 @@ package config
 import (
 	"os"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/notification-system-moxicom/persistence-service/internal/kafka"
 	"github.com/notification-system-moxicom/persistence-service/internal/rpc"
 	"github.com/notification-system-moxicom/persistence-service/internal/server"
-	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
@@ -35,8 +36,7 @@ type Integrations struct {
 	RPC IntegrationsRPCConfig `yaml:"rpc"`
 }
 
-type IntegrationsRPCConfig struct {
-}
+type IntegrationsRPCConfig struct{}
 
 func ReadConfig(fileName string) (Config, error) {
 	var cnf Config
