@@ -67,7 +67,7 @@ func (r *postgresRep) CreateSystem(
 		deletedAt sql.NullTime
 	)
 
-	if err = row.Scan(&id, &name, &description, &createdAt, &updatedAt, &deletedAt); err != nil {
+	if err := row.Scan(&id, &name, &description, &createdAt, &updatedAt, &deletedAt); err != nil {
 		return nil, err
 	}
 
@@ -115,7 +115,7 @@ func (r *postgresRep) ListSystems(ctx context.Context) ([]*rpcv1.System, error) 
 			deletedAt   sql.NullTime
 		)
 
-		if err = rows.Scan(&id, &name, &description, &createdAt, &updatedAt, &deletedAt); err != nil {
+		if err := rows.Scan(&id, &name, &description, &createdAt, &updatedAt, &deletedAt); err != nil {
 			return nil, err
 		}
 
@@ -134,7 +134,7 @@ func (r *postgresRep) ListSystems(ctx context.Context) ([]*rpcv1.System, error) 
 		systems = append(systems, system)
 	}
 
-	if err = rows.Err(); err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
@@ -170,7 +170,7 @@ func (r *postgresRep) AddUser(
 		telegramID    string
 	)
 
-	if err = row.Scan(&id, &outSystemID, &outIDAtSystem, &email, &phone, &telegramID); err != nil {
+	if err := row.Scan(&id, &outSystemID, &outIDAtSystem, &email, &phone, &telegramID); err != nil {
 		return nil, err
 	}
 
@@ -215,7 +215,7 @@ func (r *postgresRep) ListUsers(ctx context.Context, systemID string) ([]*rpcv1.
 			telegramID    string
 		)
 
-		if err = rows.Scan(&id, &outSystemID, &outIDAtSystem, &email, &phone, &telegramID); err != nil {
+		if err := rows.Scan(&id, &outSystemID, &outIDAtSystem, &email, &phone, &telegramID); err != nil {
 			return nil, err
 		}
 
@@ -230,7 +230,7 @@ func (r *postgresRep) ListUsers(ctx context.Context, systemID string) ([]*rpcv1.
 		})
 	}
 
-	if err = rows.Err(); err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 

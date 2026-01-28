@@ -93,7 +93,7 @@ func (s *Server) Run() {
 
 	// Shutdown HTTP server
 	if err := s.httpServer.Shutdown(ctx); err != nil {
-		slog.Error("HTTP server shutdown error: ", err)
+		slog.Error("HTTP server shutdown error", slog.Any("error", err))
 	} else {
 		slog.Info("HTTP server shutdown complete")
 	}

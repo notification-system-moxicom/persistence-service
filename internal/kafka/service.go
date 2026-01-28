@@ -132,7 +132,7 @@ func NewService(
 	}
 
 	consumers := make(map[string]sarama.ConsumerGroup)
-	//
+	//nolint //its ok
 	// EXAMPLE OF ADDING CONSUMER GROUP
 	//
 	// startProcessConsumer, err := sarama.NewConsumerGroup(cfg.Brokers, cfg.ConsumerGroup, saramaCfg)
@@ -148,7 +148,6 @@ func NewService(
 	// if err != nil {
 	//	return nil, fmt.Errorf("failed to create consumer group: %w", err)
 	//}
-
 	// consumers[StartProcessConsumer] = startProcessConsumer
 
 	return &Service{
@@ -238,13 +237,6 @@ func (s *Service) Produce(topic string, msg any) error {
 		return errors.NewKafkaError("kafka service is unavailable", nil)
 	}
 
-	// err := s.validator.Validate(msg)
-	// if err != nil {
-	//	errMsg := "JSON validation failed for " + fmt.Sprintf("%T", msg) + err.Error()
-	//
-	//	return fmt.Errorf("%s", errMsg)
-	//}
-
 	jsonBytes, err := json.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal message: %w", err)
@@ -323,7 +315,8 @@ func (s *Service) StartConsumer(
 			// Check if service is being closed or context is done
 			select {
 			case <-ctx.Done():
-				slog.Info("context canceled, stopping consumer ", consumerKey)
+				slog.Info("context canceled, stopping consumer", slog.String("consumer", consumerKey))
+
 				return
 			default:
 				// Continue execution
@@ -335,8 +328,11 @@ func (s *Service) StartConsumer(
 
 				// Check if we've reached the maximum number of reconnect tries
 				if s.serviceConfig.Retry.MaxReconnectTries > 0 && attempt > s.serviceConfig.Retry.MaxReconnectTries {
-					slog.Error("maximum reconnection attempts reached (", s.serviceConfig.Retry.MaxReconnectTries,
-						") for consumer ", consumerKey, ", stopping")
+					slog.Error(
+						"maximum reconnection attempts reached for consumer",
+						slog.Int("maxReconnectTries", s.serviceConfig.Retry.MaxReconnectTries),
+						slog.String("consumer", consumerKey),
+					)
 
 					return
 				}
@@ -349,19 +345,27 @@ func (s *Service) StartConsumer(
 				)
 
 				reconnectInfo := "reconnecting in " + backoff.String() + " seconds (attempt " + strconv.Itoa(attempt) + ")"
-				slog.Warn("error from consumer ", consumerKey, err, "reconnect", reconnectInfo)
+				slog.Warn(
+					"error from consumer",
+					slog.String("consumer", consumerKey),
+					slog.Any("error", err),
+					slog.String("reconnect", reconnectInfo),
+				)
 				// Wait for backoff duration or until context is canceled or service is closed
 				select {
 				case <-time.After(backoff):
 					// Continue with reconnect
 				case <-ctx.Done():
-					slog.Info("context canceled during backoff, stopping consumer ", consumerKey)
+					slog.Info("context canceled during backoff, stopping consumer", slog.String("consumer", consumerKey))
 					return
 				}
 			} else {
 				attempt = 0
 
-				slog.Info("consumer ", consumerKey, " rebalanced or returned without error, reconnecting")
+				slog.Info(
+					"consumer rebalanced or returned without error, reconnecting",
+					slog.String("consumer", consumerKey),
+				)
 			}
 		}
 	}()
@@ -402,7 +406,11 @@ func (s *Service) CloseConsumers() error {
 	for key, consumer := range s.consumers {
 		if consumer != nil {
 			if err := consumer.Close(); err != nil {
-				slog.Error("error closing Kafka consumer ", key, ": ", err)
+				slog.Error(
+					"error closing Kafka consumer",
+					slog.String("consumer", key),
+					slog.Any("error", err),
+				)
 				// Continue with closing other consumers even if one fails
 			} else {
 				slog.Info("Kafka consumer ", key, ", closed successfully")
@@ -421,7 +429,7 @@ func (s *Service) CloseProducer() error {
 	// Then close the producer
 	if s.producer != nil {
 		if err := s.producer.Close(); err != nil {
-			slog.Error("error closing Kafka producer: %v", err)
+			slog.Error("error closing Kafka producer", slog.Any("error", err))
 			return err
 		}
 	}

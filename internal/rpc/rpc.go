@@ -63,7 +63,9 @@ func NewGRPC(
 }
 
 func (s *GRPC) Listen() error {
-	lis, err := net.Listen("tcp", s.config.Port)
+	var lc net.ListenConfig
+
+	lis, err := lc.Listen(context.Background(), "tcp", s.config.Port)
 	if err != nil {
 		return err
 	}

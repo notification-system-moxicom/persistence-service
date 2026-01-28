@@ -44,7 +44,7 @@ func (cgh *ConsumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSessio
 			defer func() { <-sem }()
 
 			if err := cgh.handler.HandleMessage(context.Background(), m); err != nil {
-				slog.Error("Failed to handle message: %v", err)
+				slog.Error("failed to handle message", slog.Any("error", err))
 			}
 
 			session.MarkMessage(m, "")
