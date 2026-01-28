@@ -5,9 +5,8 @@ import (
 	"log/slog"
 
 	"github.com/notification-system-moxicom/persistence-service/internal/config"
-	"github.com/notification-system-moxicom/persistence-service/internal/http/handlers"
 	"github.com/notification-system-moxicom/persistence-service/internal/kafka"
-	"github.com/notification-system-moxicom/persistence-service/internal/server"
+	"github.com/notification-system-moxicom/persistence-service/internal/rpc"
 	"github.com/notification-system-moxicom/persistence-service/internal/validation"
 	"github.com/notification-system-moxicom/persistence-service/pkg/logger"
 )
@@ -56,7 +55,11 @@ func main() {
 		return
 	}
 
-	httpHandlers := handlers.NewHandlers()
+	rpcServ := rpc.NewGRPC(&cfg.Server.GRPC, nil)
+	if err = rpcServ.Listen(); err != nil {
+		slog.Error("failed to listen RPC server", slog.String("error", err.Error()))
+		return
+	}
 
-	server.NewServer(httpHandlers)
+	slog.Info("finishing")
 }

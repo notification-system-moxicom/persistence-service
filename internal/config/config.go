@@ -4,14 +4,18 @@ import (
 	"os"
 
 	"github.com/notification-system-moxicom/persistence-service/internal/kafka"
+	"github.com/notification-system-moxicom/persistence-service/internal/rpc"
 	"github.com/notification-system-moxicom/persistence-service/internal/server"
 	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
-	Settings     SettingsConfig `yaml:"settings"`
-	Server       server.Config  `yaml:"server"`
-	Integrations Integrations   `yaml:"integrations"`
+	Settings SettingsConfig `yaml:"settings"`
+	Server   struct {
+		HTTP server.HTTPConfig `yaml:"http"`
+		GRPC rpc.GRPCConfig    `yaml:"grpc"`
+	} `yaml:"server"`
+	Integrations Integrations `yaml:"integrations"`
 	Connections  struct {
 		Kafka struct {
 			CamundaCore kafka.Config `yaml:"orchestrator"`

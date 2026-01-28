@@ -8,14 +8,11 @@ settings:
   action_execution_timeout: "30s"
 
 server:
-    http:
-        address: ":8080" # [ЗАМЕНИТЬ]
+    grpc:
+      port: ":9090"
 
 integrations:
   rpc:
-    # TODO:
-    # add info service later
-    #
 
 connections:
   kafka:

@@ -1,1 +1,92 @@
 syntax = "proto3";
+
+package persistence.v1;
+
+option go_package = "github.com/твое_имя/repo/pkg/pb/persistence/v1;persistencev1";
+
+service PersistenceService {
+  // Systems
+  rpc CreateSystem (CreateSystemRequest) returns (System);
+  rpc GetSystems (GetSystemsRequest) returns (Systems);
+  
+  // Users
+  rpc AddUser (AddUserRequest) returns (User);
+  rpc GetUsers (GetUsersRequest) returns (Users);
+  
+  // Notifications
+  rpc Notify (NotifyRequest) returns (InfoMessage);
+}
+
+// --- Common Messages ---
+
+message InfoMessage {
+  string message = 1; // info description
+}
+
+message ErrorResponse {
+  string error = 1; // error description
+}
+
+// --- System Messages ---
+
+message System {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  int64 created_at = 4;
+  int64 updated_at = 5;
+  int64 deleted_at = 6;
+}
+
+message CreateSystemRequest {
+  string name = 1;
+  string description = 2;
+}
+
+message GetSystemsRequest {
+  // Empty request for listing all systems
+}
+
+message Systems {
+  repeated System systems = 1;
+}
+
+// --- User Messages ---
+
+message Adapter {
+  string email = 1; // e.g., "email@example.com"
+  string phone = 2; // e.g., "+73330001188"
+  string telegram_chat_id = 3; // e.g., "1942345987"
+}
+
+message User {
+  string id = 1; // internal id
+  string id_at_system = 2; // id from system
+  Adapter adapters = 3;
+}
+
+message AddUserRequest {
+  string system_id = 1; // System ID from path parameter
+  string id_at_system = 2; // id from system
+  Adapter adapters = 3;
+}
+
+message GetUsersRequest {
+  string system_id = 1; // System ID from path parameter
+}
+
+message Users {
+  repeated User users = 1;
+}
+
+// --- Notification Messages ---
+
+message NotificationBody {
+  repeated string users = 1; // system's ids
+  Adapter adapters = 2;
+}
+
+message NotifyRequest {
+  string system_id = 1; // System ID from path parameter
+  NotificationBody body = 2;
+}

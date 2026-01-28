@@ -23,10 +23,8 @@ const (
 	shutdownTimeout            = 30 * time.Second
 )
 
-type Config struct {
-	HTTP struct {
-		Address string `yaml:"address"`
-	} `yaml:"http"`
+type HTTPConfig struct {
+	Address string `yaml:"address"`
 }
 
 type HTTPHandlers interface {
@@ -43,7 +41,7 @@ func NewServer(h HTTPHandlers) *Server {
 	}
 }
 
-func (s *Server) AddHTTPServer(c Config) {
+func (s *Server) AddHTTPServer(c HTTPConfig) {
 	corsOptions := cors.Options{
 		AllowedOrigins:   []string{"https://*", "http://*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -64,7 +62,7 @@ func (s *Server) AddHTTPServer(c Config) {
 
 	s.httpServer = &http.Server{
 		Handler:           mux,
-		Addr:              c.HTTP.Address,
+		Addr:              c.Address,
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
 }
