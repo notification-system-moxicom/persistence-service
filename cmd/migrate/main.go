@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
@@ -17,31 +19,34 @@ import (
 )
 
 func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
 	var (
 		command    = flag.String("command", "up", "Migration command: up, down, status, or version")
 		dir        = flag.String("dir", "migrations", "Directory with migration files")
-		dbURL      = flag.String("db-url", "", "Database connection URL (overrides config)")
 		configPath = flag.String("config", "configs/config.yaml", "Path to config file")
 		version    = flag.Int64("version", 0, "Version for up-to or down-to commands")
 	)
 
 	flag.Parse()
 
-	dsn := *dbURL
-	if dsn == "" {
-		cfg, err := config.ReadConfig(*configPath)
-		if err == nil {
-			dsn = repository.BuildDSN(cfg.Connections.Postgres)
-		}
-	}
-
-	if dsn == "" {
-		log.Fatal("Database connection URL is required. Provide it via: -db-url flag, config file, or DATABASE_URL environment variable")
-	}
-
-	db, err := sql.Open("pgx", dsn)
+	cfg, err := config.ReadConfig(*configPath)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		return err
+	}
+
+	dsn := repository.BuildDSN(cfg.Connections.Postgres)
+	if dsn == "" {
+		return errors.New("dsn is nil")
+	}
+
+	db, err := connectDB(dsn)
+	if err != nil {
+		return err
 	}
 	defer func() {
 		if err := db.Close(); err != nil {
@@ -49,91 +54,144 @@ func main() {
 		}
 	}()
 
-	if err := db.PingContext(context.Background()); err != nil {
-		log.Fatalf("Failed to ping database: %v", err)
+	migrationsDir, err := validateMigrationsDir(*dir)
+	if err != nil {
+		return err
 	}
 
-	migrationsDir := *dir
+	return executeCommand(db, migrationsDir, *command, *version)
+}
 
-	absDir, err := filepath.Abs(migrationsDir)
+func connectDB(dsn string) (*sql.DB, error) {
+	db, err := sql.Open("pgx", dsn)
 	if err != nil {
-		log.Fatalf("Failed to get absolute path for migrations directory: %v", err)
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
+	}
+
+	if err := db.PingContext(context.Background()); err != nil {
+		return nil, fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	return db, nil
+}
+
+func validateMigrationsDir(dir string) (string, error) {
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return "", fmt.Errorf("failed to get absolute path for migrations directory: %w", err)
 	}
 
 	info, err := os.Stat(absDir)
 	if err != nil {
-		log.Fatalf("Migrations directory does not exist: %s", absDir)
+		return "", fmt.Errorf("migrations directory does not exist: %s", absDir)
 	}
 
 	if !info.IsDir() {
-		log.Fatalf("Path is not a directory: %s", absDir)
+		return "", fmt.Errorf("path is not a directory: %s", absDir)
 	}
 
-	migrationsDir = absDir
+	return absDir, nil
+}
 
-	switch *command {
+func executeCommand(db *sql.DB, migrationsDir, command string, version int64) error {
+	switch command {
 	case "up":
-		if err := goose.Up(db, migrationsDir); err != nil {
-			log.Fatalf("Failed to run migrations: %v", err)
-		}
-
-		log.Println("Migrations applied successfully")
-
+		return runUp(db, migrationsDir)
 	case "down":
-		if err := goose.Down(db, migrationsDir); err != nil {
-			log.Fatalf("Failed to rollback migrations: %v", err)
-		}
-
-		log.Println("Migrations rolled back successfully")
-
+		return runDown(db, migrationsDir)
 	case "down-to":
-		if *version == 0 {
-			log.Fatal("Version is required for down-to command")
-		}
-
-		if err := goose.DownTo(db, migrationsDir, *version); err != nil {
-			log.Fatalf("Failed to rollback migrations to version %d: %v", *version, err)
-		}
-
-		log.Printf("Migrations rolled back to version %d successfully", *version)
-
+		return runDownTo(db, migrationsDir, version)
 	case "up-to":
-		if *version == 0 {
-			log.Fatal("Version is required for up-to command")
-		}
-
-		if err := goose.UpTo(db, migrationsDir, *version); err != nil {
-			log.Fatalf("Failed to run migrations to version %d: %v", *version, err)
-		}
-
-		log.Printf("Migrations applied to version %d successfully", *version)
-
+		return runUpTo(db, migrationsDir, version)
 	case "status":
-		if err := goose.Status(db, migrationsDir); err != nil {
-			log.Fatalf("Failed to get migration status: %v", err)
-		}
-
+		return runStatus(db, migrationsDir)
 	case "version":
-		version, err := goose.GetDBVersion(db)
-		if err != nil {
-			log.Fatalf("Failed to get database version: %v", err)
-		}
-
-		log.Printf("Current database version: %d", version)
-
+		return runVersion(db)
 	case "create":
-		if len(flag.Args()) == 0 {
-			log.Fatal("Migration name is required for create command")
-		}
-
-		name := flag.Args()[0]
-		if err := goose.Create(db, migrationsDir, name, "sql"); err != nil {
-			log.Fatalf("Failed to create migration: %v", err)
-		}
-
-		log.Printf("Migration created successfully: %s", name)
-
+		return runCreate(db, migrationsDir)
 	default:
-		log.Fatalf("Unknown command: %s. Available commands: up, down, down-to, up-to, status, version, create", *command)
+		return fmt.Errorf("unknown command: %s. Available commands: up, down, down-to, up-to, status, version, create", command)
 	}
+}
+
+func runUp(db *sql.DB, migrationsDir string) error {
+	if err := goose.Up(db, migrationsDir); err != nil {
+		return fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	log.Println("Migrations applied successfully")
+
+	return nil
+}
+
+func runDown(db *sql.DB, migrationsDir string) error {
+	if err := goose.Down(db, migrationsDir); err != nil {
+		return fmt.Errorf("failed to rollback migrations: %w", err)
+	}
+
+	log.Println("Migrations rolled back successfully")
+
+	return nil
+}
+
+func runDownTo(db *sql.DB, migrationsDir string, version int64) error {
+	if version == 0 {
+		return errors.New("version is required for down-to command")
+	}
+
+	if err := goose.DownTo(db, migrationsDir, version); err != nil {
+		return fmt.Errorf("failed to rollback migrations to version %d: %w", version, err)
+	}
+
+	log.Printf("Migrations rolled back to version %d successfully", version)
+
+	return nil
+}
+
+func runUpTo(db *sql.DB, migrationsDir string, version int64) error {
+	if version == 0 {
+		return errors.New("version is required for up-to command")
+	}
+
+	if err := goose.UpTo(db, migrationsDir, version); err != nil {
+		return fmt.Errorf("failed to run migrations to version %d: %w", version, err)
+	}
+
+	log.Printf("Migrations applied to version %d successfully", version)
+
+	return nil
+}
+
+func runStatus(db *sql.DB, migrationsDir string) error {
+	if err := goose.Status(db, migrationsDir); err != nil {
+		return fmt.Errorf("failed to get migration status: %w", err)
+	}
+
+	return nil
+}
+
+func runVersion(db *sql.DB) error {
+	version, err := goose.GetDBVersion(db)
+	if err != nil {
+		return fmt.Errorf("failed to get database version: %w", err)
+	}
+
+	log.Printf("Current database version: %d", version)
+
+	return nil
+}
+
+func runCreate(db *sql.DB, migrationsDir string) error {
+	if len(flag.Args()) == 0 {
+		return errors.New("migration name is required for create command")
+	}
+
+	name := flag.Args()[0]
+	if err := goose.Create(db, migrationsDir, name, "sql"); err != nil {
+		return fmt.Errorf("failed to create migration: %w", err)
+	}
+
+	log.Printf("Migration created successfully: %s", name)
+
+	return nil
 }

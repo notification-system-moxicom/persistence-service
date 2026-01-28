@@ -25,11 +25,15 @@ type Config struct {
 type SystemRepository interface {
 	CreateSystem(ctx context.Context, name, description string) (*rpcv1.System, error)
 	ListSystems(ctx context.Context) ([]*rpcv1.System, error)
+	UpdateSystem(ctx context.Context, id string, name, description *string) (*rpcv1.System, error)
+	DeleteSystem(ctx context.Context, id string) error
 }
 
 type UserRepository interface {
 	AddUser(ctx context.Context, systemID, idAtSystem string, adapters *rpcv1.Adapter) (*rpcv1.User, error)
 	ListUsers(ctx context.Context, systemID string) ([]*rpcv1.User, error)
+	UpdateUser(ctx context.Context, id string, idAtSystem *string, adapters *rpcv1.Adapter) (*rpcv1.User, error)
+	DeleteUser(ctx context.Context, id string) error
 }
 
 type Repository interface {
@@ -277,4 +281,142 @@ func (r *postgresRep) ListUsers(ctx context.Context, systemID string) ([]*rpcv1.
 	}
 
 	return users, nil
+}
+
+func (r *postgresRep) UpdateSystem(
+	ctx context.Context,
+	id string,
+	name, description *string,
+) (*rpcv1.System, error) {
+	now := time.Now().UTC()
+	query := r.sb.Update("systems").Set("updated_at", now)
+
+	if name != nil {
+		query = query.Set("name", *name)
+	}
+
+	if description != nil {
+		query = query.Set("description", *description)
+	}
+
+	query = query.Where(sq.Eq{"id": id}).
+		Suffix("RETURNING id, name, description, created_at, updated_at, deleted_at")
+
+	sqlStr, args, err := query.ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	row := r.pool.QueryRow(ctx, sqlStr, args...)
+
+	var (
+		outID     string
+		outName   string
+		outDesc   string
+		createdAt time.Time
+		updatedAt time.Time
+		deletedAt sql.NullTime
+	)
+
+	if err := row.Scan(&outID, &outName, &outDesc, &createdAt, &updatedAt, &deletedAt); err != nil {
+		return nil, err
+	}
+
+	system := &rpcv1.System{
+		Id:          outID,
+		Name:        outName,
+		Description: outDesc,
+		CreatedAt:   createdAt.Unix(),
+		UpdatedAt:   updatedAt.Unix(),
+	}
+
+	if deletedAt.Valid {
+		system.DeletedAt = deletedAt.Time.Unix()
+	}
+
+	return system, nil
+}
+
+func (r *postgresRep) DeleteSystem(ctx context.Context, id string) error {
+	now := time.Now().UTC()
+	query := r.sb.
+		Update("systems").
+		Set("deleted_at", now).
+		Where(sq.Eq{"id": id})
+
+	sqlStr, args, err := query.ToSql()
+	if err != nil {
+		return err
+	}
+
+	_, err = r.pool.Exec(ctx, sqlStr, args...)
+
+	return err
+}
+
+func (r *postgresRep) UpdateUser(
+	ctx context.Context,
+	id string,
+	idAtSystem *string,
+	adapters *rpcv1.Adapter,
+) (*rpcv1.User, error) {
+	query := r.sb.Update("users")
+
+	if idAtSystem != nil {
+		query = query.Set("id_at_system", *idAtSystem)
+	}
+
+	if adapters != nil {
+		query = query.Set("email", adapters.GetEmail())
+		query = query.Set("phone", adapters.GetPhone())
+		query = query.Set("telegram_chat_id", adapters.GetTelegramChatId())
+	}
+
+	query = query.Where(sq.Eq{"id": id}).
+		Suffix("RETURNING id, system_id, id_at_system, email, phone, telegram_chat_id")
+
+	sqlStr, args, err := query.ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	row := r.pool.QueryRow(ctx, sqlStr, args...)
+
+	var (
+		outID         string
+		outSystemID   string
+		outIDAtSystem string
+		email         string
+		phone         string
+		telegramID    string
+	)
+
+	if err := row.Scan(&outID, &outSystemID, &outIDAtSystem, &email, &phone, &telegramID); err != nil {
+		return nil, err
+	}
+
+	return &rpcv1.User{
+		Id:         outID,
+		IdAtSystem: outIDAtSystem,
+		Adapters: &rpcv1.Adapter{
+			Email:          email,
+			Phone:          phone,
+			TelegramChatId: telegramID,
+		},
+	}, nil
+}
+
+func (r *postgresRep) DeleteUser(ctx context.Context, id string) error {
+	query := r.sb.
+		Delete("users").
+		Where(sq.Eq{"id": id})
+
+	sqlStr, args, err := query.ToSql()
+	if err != nil {
+		return err
+	}
+
+	_, err = r.pool.Exec(ctx, sqlStr, args...)
+
+	return err
 }

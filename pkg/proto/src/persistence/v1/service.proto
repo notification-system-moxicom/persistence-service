@@ -5,13 +5,16 @@ package persistence.v1;
 option go_package = "github.com/твое_имя/repo/pkg/pb/persistence/v1;persistencev1";
 
 service PersistenceService {
-  // Systems
   rpc CreateSystem (CreateSystemRequest) returns (System);
   rpc GetSystems (GetSystemsRequest) returns (Systems);
+  rpc UpdateSystem (UpdateSystemRequest) returns (System);
+  rpc DeleteSystem (DeleteSystemRequest) returns (InfoMessage);
   
-  // Users
+  // Users CRUD
   rpc AddUser (AddUserRequest) returns (User);
   rpc GetUsers (GetUsersRequest) returns (Users);
+  rpc UpdateUser (UpdateUserRequest) returns (User);
+  rpc DeleteUser (DeleteUserRequest) returns (InfoMessage);
   
   // Notifications
   rpc Notify (NotifyRequest) returns (InfoMessage);
@@ -47,6 +50,16 @@ message GetSystemsRequest {
   // Empty request for listing all systems
 }
 
+message UpdateSystemRequest {
+  string id = 1; // System ID
+  string name = 2; // Optional: new name
+  string description = 3; // Optional: new description
+}
+
+message DeleteSystemRequest {
+  string id = 1; // System ID
+}
+
 message Systems {
   repeated System systems = 1;
 }
@@ -73,6 +86,16 @@ message AddUserRequest {
 
 message GetUsersRequest {
   string system_id = 1; // System ID from path parameter
+}
+
+message UpdateUserRequest {
+  string id = 1; // User ID
+  string id_at_system = 2; // Optional: new id_at_system
+  Adapter adapters = 3; // Optional: new adapters
+}
+
+message DeleteUserRequest {
+  string id = 1; // User ID
 }
 
 message Users {

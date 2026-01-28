@@ -21,8 +21,12 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	PersistenceService_CreateSystem_FullMethodName = "/persistence.v1.PersistenceService/CreateSystem"
 	PersistenceService_GetSystems_FullMethodName   = "/persistence.v1.PersistenceService/GetSystems"
+	PersistenceService_UpdateSystem_FullMethodName = "/persistence.v1.PersistenceService/UpdateSystem"
+	PersistenceService_DeleteSystem_FullMethodName = "/persistence.v1.PersistenceService/DeleteSystem"
 	PersistenceService_AddUser_FullMethodName      = "/persistence.v1.PersistenceService/AddUser"
 	PersistenceService_GetUsers_FullMethodName     = "/persistence.v1.PersistenceService/GetUsers"
+	PersistenceService_UpdateUser_FullMethodName   = "/persistence.v1.PersistenceService/UpdateUser"
+	PersistenceService_DeleteUser_FullMethodName   = "/persistence.v1.PersistenceService/DeleteUser"
 	PersistenceService_Notify_FullMethodName       = "/persistence.v1.PersistenceService/Notify"
 )
 
@@ -30,12 +34,15 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type PersistenceServiceClient interface {
-	// Systems
 	CreateSystem(ctx context.Context, in *CreateSystemRequest, opts ...grpc.CallOption) (*System, error)
 	GetSystems(ctx context.Context, in *GetSystemsRequest, opts ...grpc.CallOption) (*Systems, error)
-	// Users
+	UpdateSystem(ctx context.Context, in *UpdateSystemRequest, opts ...grpc.CallOption) (*System, error)
+	DeleteSystem(ctx context.Context, in *DeleteSystemRequest, opts ...grpc.CallOption) (*InfoMessage, error)
+	// Users CRUD
 	AddUser(ctx context.Context, in *AddUserRequest, opts ...grpc.CallOption) (*User, error)
 	GetUsers(ctx context.Context, in *GetUsersRequest, opts ...grpc.CallOption) (*Users, error)
+	UpdateUser(ctx context.Context, in *UpdateUserRequest, opts ...grpc.CallOption) (*User, error)
+	DeleteUser(ctx context.Context, in *DeleteUserRequest, opts ...grpc.CallOption) (*InfoMessage, error)
 	// Notifications
 	Notify(ctx context.Context, in *NotifyRequest, opts ...grpc.CallOption) (*InfoMessage, error)
 }
@@ -68,6 +75,26 @@ func (c *persistenceServiceClient) GetSystems(ctx context.Context, in *GetSystem
 	return out, nil
 }
 
+func (c *persistenceServiceClient) UpdateSystem(ctx context.Context, in *UpdateSystemRequest, opts ...grpc.CallOption) (*System, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(System)
+	err := c.cc.Invoke(ctx, PersistenceService_UpdateSystem_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *persistenceServiceClient) DeleteSystem(ctx context.Context, in *DeleteSystemRequest, opts ...grpc.CallOption) (*InfoMessage, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(InfoMessage)
+	err := c.cc.Invoke(ctx, PersistenceService_DeleteSystem_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *persistenceServiceClient) AddUser(ctx context.Context, in *AddUserRequest, opts ...grpc.CallOption) (*User, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(User)
@@ -88,6 +115,26 @@ func (c *persistenceServiceClient) GetUsers(ctx context.Context, in *GetUsersReq
 	return out, nil
 }
 
+func (c *persistenceServiceClient) UpdateUser(ctx context.Context, in *UpdateUserRequest, opts ...grpc.CallOption) (*User, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(User)
+	err := c.cc.Invoke(ctx, PersistenceService_UpdateUser_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *persistenceServiceClient) DeleteUser(ctx context.Context, in *DeleteUserRequest, opts ...grpc.CallOption) (*InfoMessage, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(InfoMessage)
+	err := c.cc.Invoke(ctx, PersistenceService_DeleteUser_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *persistenceServiceClient) Notify(ctx context.Context, in *NotifyRequest, opts ...grpc.CallOption) (*InfoMessage, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(InfoMessage)
@@ -102,12 +149,15 @@ func (c *persistenceServiceClient) Notify(ctx context.Context, in *NotifyRequest
 // All implementations must embed UnimplementedPersistenceServiceServer
 // for forward compatibility.
 type PersistenceServiceServer interface {
-	// Systems
 	CreateSystem(context.Context, *CreateSystemRequest) (*System, error)
 	GetSystems(context.Context, *GetSystemsRequest) (*Systems, error)
-	// Users
+	UpdateSystem(context.Context, *UpdateSystemRequest) (*System, error)
+	DeleteSystem(context.Context, *DeleteSystemRequest) (*InfoMessage, error)
+	// Users CRUD
 	AddUser(context.Context, *AddUserRequest) (*User, error)
 	GetUsers(context.Context, *GetUsersRequest) (*Users, error)
+	UpdateUser(context.Context, *UpdateUserRequest) (*User, error)
+	DeleteUser(context.Context, *DeleteUserRequest) (*InfoMessage, error)
 	// Notifications
 	Notify(context.Context, *NotifyRequest) (*InfoMessage, error)
 	mustEmbedUnimplementedPersistenceServiceServer()
@@ -126,11 +176,23 @@ func (UnimplementedPersistenceServiceServer) CreateSystem(context.Context, *Crea
 func (UnimplementedPersistenceServiceServer) GetSystems(context.Context, *GetSystemsRequest) (*Systems, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetSystems not implemented")
 }
+func (UnimplementedPersistenceServiceServer) UpdateSystem(context.Context, *UpdateSystemRequest) (*System, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateSystem not implemented")
+}
+func (UnimplementedPersistenceServiceServer) DeleteSystem(context.Context, *DeleteSystemRequest) (*InfoMessage, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteSystem not implemented")
+}
 func (UnimplementedPersistenceServiceServer) AddUser(context.Context, *AddUserRequest) (*User, error) {
 	return nil, status.Error(codes.Unimplemented, "method AddUser not implemented")
 }
 func (UnimplementedPersistenceServiceServer) GetUsers(context.Context, *GetUsersRequest) (*Users, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetUsers not implemented")
+}
+func (UnimplementedPersistenceServiceServer) UpdateUser(context.Context, *UpdateUserRequest) (*User, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateUser not implemented")
+}
+func (UnimplementedPersistenceServiceServer) DeleteUser(context.Context, *DeleteUserRequest) (*InfoMessage, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteUser not implemented")
 }
 func (UnimplementedPersistenceServiceServer) Notify(context.Context, *NotifyRequest) (*InfoMessage, error) {
 	return nil, status.Error(codes.Unimplemented, "method Notify not implemented")
@@ -192,6 +254,42 @@ func _PersistenceService_GetSystems_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PersistenceService_UpdateSystem_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateSystemRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PersistenceServiceServer).UpdateSystem(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PersistenceService_UpdateSystem_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PersistenceServiceServer).UpdateSystem(ctx, req.(*UpdateSystemRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PersistenceService_DeleteSystem_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteSystemRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PersistenceServiceServer).DeleteSystem(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PersistenceService_DeleteSystem_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PersistenceServiceServer).DeleteSystem(ctx, req.(*DeleteSystemRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PersistenceService_AddUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AddUserRequest)
 	if err := dec(in); err != nil {
@@ -224,6 +322,42 @@ func _PersistenceService_GetUsers_Handler(srv interface{}, ctx context.Context, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(PersistenceServiceServer).GetUsers(ctx, req.(*GetUsersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PersistenceService_UpdateUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateUserRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PersistenceServiceServer).UpdateUser(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PersistenceService_UpdateUser_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PersistenceServiceServer).UpdateUser(ctx, req.(*UpdateUserRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PersistenceService_DeleteUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteUserRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PersistenceServiceServer).DeleteUser(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PersistenceService_DeleteUser_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PersistenceServiceServer).DeleteUser(ctx, req.(*DeleteUserRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -262,12 +396,28 @@ var PersistenceService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _PersistenceService_GetSystems_Handler,
 		},
 		{
+			MethodName: "UpdateSystem",
+			Handler:    _PersistenceService_UpdateSystem_Handler,
+		},
+		{
+			MethodName: "DeleteSystem",
+			Handler:    _PersistenceService_DeleteSystem_Handler,
+		},
+		{
 			MethodName: "AddUser",
 			Handler:    _PersistenceService_AddUser_Handler,
 		},
 		{
 			MethodName: "GetUsers",
 			Handler:    _PersistenceService_GetUsers_Handler,
+		},
+		{
+			MethodName: "UpdateUser",
+			Handler:    _PersistenceService_UpdateUser_Handler,
+		},
+		{
+			MethodName: "DeleteUser",
+			Handler:    _PersistenceService_DeleteUser_Handler,
 		},
 		{
 			MethodName: "Notify",
