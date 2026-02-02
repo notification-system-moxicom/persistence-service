@@ -59,6 +59,10 @@ func New(ctx context.Context, cfg Config) (Repository, error) {
 		return nil, err
 	}
 
+	if err := pool.Ping(ctx); err != nil {
+		return nil, err
+	}
+
 	return &postgresRep{
 		pool: pool,
 		sb:   sq.StatementBuilder.PlaceholderFormat(sq.Dollar),
