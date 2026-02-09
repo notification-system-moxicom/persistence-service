@@ -44,7 +44,7 @@ type PersistenceServiceClient interface {
 	UpdateUser(ctx context.Context, in *UpdateUserRequest, opts ...grpc.CallOption) (*User, error)
 	DeleteUser(ctx context.Context, in *DeleteUserRequest, opts ...grpc.CallOption) (*InfoMessage, error)
 	// Notifications
-	Notify(ctx context.Context, in *NotifyRequest, opts ...grpc.CallOption) (*InfoMessage, error)
+	Notify(ctx context.Context, in *NotifyRequest, opts ...grpc.CallOption) (*NotifyResponse, error)
 }
 
 type persistenceServiceClient struct {
@@ -127,8 +127,8 @@ func (c *persistenceServiceClient) DeleteUser(ctx context.Context, in *DeleteUse
 	return out, nil
 }
 
-func (c *persistenceServiceClient) Notify(ctx context.Context, in *NotifyRequest, opts ...grpc.CallOption) (*InfoMessage, error) {
-	out := new(InfoMessage)
+func (c *persistenceServiceClient) Notify(ctx context.Context, in *NotifyRequest, opts ...grpc.CallOption) (*NotifyResponse, error) {
+	out := new(NotifyResponse)
 	err := c.cc.Invoke(ctx, PersistenceService_Notify_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -150,7 +150,7 @@ type PersistenceServiceServer interface {
 	UpdateUser(context.Context, *UpdateUserRequest) (*User, error)
 	DeleteUser(context.Context, *DeleteUserRequest) (*InfoMessage, error)
 	// Notifications
-	Notify(context.Context, *NotifyRequest) (*InfoMessage, error)
+	Notify(context.Context, *NotifyRequest) (*NotifyResponse, error)
 	mustEmbedUnimplementedPersistenceServiceServer()
 }
 
@@ -182,7 +182,7 @@ func (UnimplementedPersistenceServiceServer) UpdateUser(context.Context, *Update
 func (UnimplementedPersistenceServiceServer) DeleteUser(context.Context, *DeleteUserRequest) (*InfoMessage, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteUser not implemented")
 }
-func (UnimplementedPersistenceServiceServer) Notify(context.Context, *NotifyRequest) (*InfoMessage, error) {
+func (UnimplementedPersistenceServiceServer) Notify(context.Context, *NotifyRequest) (*NotifyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Notify not implemented")
 }
 func (UnimplementedPersistenceServiceServer) mustEmbedUnimplementedPersistenceServiceServer() {}

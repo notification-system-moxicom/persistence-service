@@ -17,7 +17,7 @@ service PersistenceService {
   rpc DeleteUser (DeleteUserRequest) returns (InfoMessage);
   
   // Notifications
-  rpc Notify (NotifyRequest) returns (InfoMessage);
+  rpc Notify (NotifyRequest) returns (NotifyResponse);
 }
 
 // --- Common Messages ---
@@ -104,12 +104,17 @@ message Users {
 
 // --- Notification Messages ---
 
-message NotificationBody {
-  repeated string users = 1; // system's ids
-  Adapter adapters = 2;
+message NotifyRequest {
+  string system_id = 1;            // System ID
+  repeated string user_ids = 2;    // list of user ids at system
+  string content = 3;             // notification content
 }
 
-message NotifyRequest {
-  string system_id = 1; // System ID from path parameter
-  NotificationBody body = 2;
+message NotifyResponse {
+  string notification_id = 1;     // id of the created notification
+}
+
+message ValidationErrorResponse {
+  string error = 1;                // human-readable error description
+  repeated string details = 2;    // per-field validation details
 }

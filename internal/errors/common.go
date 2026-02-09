@@ -52,3 +52,28 @@ func (e InvalidMessageError) Is(err error) bool {
 
 	return ok
 }
+
+type ValidationError struct {
+	msg     string
+	details []string
+}
+
+func NewValidationError(msg string, details ...string) ValidationError {
+	return ValidationError{msg: msg, details: details}
+}
+
+func (e ValidationError) Error() string {
+	return e.msg
+}
+
+func (e ValidationError) Details() []string {
+	return e.details
+}
+
+func (e ValidationError) Is(err error) bool {
+	var validationError ValidationError
+
+	ok := errors.As(err, &validationError)
+
+	return ok
+}

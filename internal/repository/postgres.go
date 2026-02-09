@@ -4,12 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	rpcv1 "github.com/notification-system-moxicom/persistence-service/pkg/proto/gen/persistence/v1"
@@ -36,9 +38,14 @@ type UserRepository interface {
 	DeleteUser(ctx context.Context, id string) error
 }
 
+type NotificationRepository interface {
+	CreateNotification(ctx context.Context, systemID string, userIDs []string, content string) (string, error)
+}
+
 type Repository interface {
 	SystemRepository
 	UserRepository
+	NotificationRepository
 }
 
 type postgresRep struct {
@@ -423,4 +430,105 @@ func (r *postgresRep) DeleteUser(ctx context.Context, id string) error {
 	_, err = r.pool.Exec(ctx, sqlStr, args...)
 
 	return err
+}
+
+func (r *postgresRep) CreateNotification(
+	ctx context.Context,
+	systemID string,
+	userIDs []string,
+	content string,
+) (string, error) {
+	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+
+	// Resolve user UUIDs by id_at_system within the given system
+	resolveQuery := r.sb.
+		Select("id").
+		From("users").
+		Where(sq.Eq{
+			"system_id":    systemID,
+			"id_at_system": userIDs,
+		})
+
+	resolveSql, resolveArgs, err := resolveQuery.ToSql()
+	if err != nil {
+		return "", fmt.Errorf("failed to build resolve query: %w", err)
+	}
+
+	rows, err := tx.Query(ctx, resolveSql, resolveArgs...)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve users: %w", err)
+	}
+
+	var resolvedUserUUIDs []string
+
+	for rows.Next() {
+		var uid string
+		if err = rows.Scan(&uid); err != nil {
+			rows.Close()
+			return "", fmt.Errorf("failed to scan user id: %w", err)
+		}
+
+		resolvedUserUUIDs = append(resolvedUserUUIDs, uid)
+	}
+
+	rows.Close()
+
+	if err = rows.Err(); err != nil {
+		return "", fmt.Errorf("failed to iterate user rows: %w", err)
+	}
+
+	if len(resolvedUserUUIDs) == 0 {
+		return "", fmt.Errorf("no users found for system %s with given ids", systemID)
+	}
+
+	// Create one notification with status pending
+	insertNotifQuery := r.sb.
+		Insert("notifications").
+		Columns("system_id", "content", "status", "created_at").
+		Values(systemID, content, "pending", time.Now().UTC()).
+		Suffix("RETURNING id")
+
+	insertNotifSql, insertNotifArgs, err := insertNotifQuery.ToSql()
+	if err != nil {
+		return "", fmt.Errorf("failed to build insert notification query: %w", err)
+	}
+
+	var notificationID string
+
+	if err = tx.QueryRow(ctx, insertNotifSql, insertNotifArgs...).Scan(&notificationID); err != nil {
+		return "", fmt.Errorf("failed to insert notification: %w", err)
+	}
+
+	// Insert recipients for this notification
+	recipientsQuery := r.sb.
+		Insert("notification_recipients").
+		Columns("notification_id", "user_id")
+
+	for _, uid := range resolvedUserUUIDs {
+		recipientsQuery = recipientsQuery.Values(notificationID, uid)
+	}
+
+	recipientsSql, recipientsArgs, err := recipientsQuery.ToSql()
+	if err != nil {
+		return "", fmt.Errorf("failed to build insert recipients query: %w", err)
+	}
+
+	if _, err = tx.Exec(ctx, recipientsSql, recipientsArgs...); err != nil {
+		return "", fmt.Errorf("failed to insert notification recipients: %w", err)
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return "", fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return notificationID, nil
 }
